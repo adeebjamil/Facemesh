@@ -2,6 +2,36 @@
   text-align: center;
 }
 
+/* Styling for the face counter in the top right corner */
+.face-counter {
+  position: absolute;
+  top: 20px;
+  right: 20px;
+  background-color: rgba(0, 0, 0, 0.7);
+  color: white;
+  padding: 10px 15px;
+  border-radius: 5px;
+  font-size: 18px;
+  font-weight: bold;
+  z-index: 20; /* Higher than canvas and webcam to ensure visibility */
+  margin: 0;
+}
+
+/* Add styling for the finger counter in the top left corner */
+.finger-counter {
+  position: absolute;
+  top: 20px;
+  left: 20px;
+  background-color: rgba(255, 153, 0, 0.7); /* Orange background to differentiate */
+  color: white;
+  padding: 10px 15px;
+  border-radius: 5px;
+  font-size: 18px;
+  font-weight: bold;
+  z-index: 20; /* Higher than canvas and webcam to ensure visibility */
+  margin: 0;
+}
+
 .App-logo {
   height: 40vmin;
   pointer-events: none;

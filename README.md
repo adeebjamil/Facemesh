@@ -1,70 +1,226 @@
-# Getting Started with Create React App
+import React, { useRef, useEffect, useState, useCallback } from "react";
+import "./App.css";
+import * as tf from "@tensorflow/tfjs";
+// Use the older facemesh model that's already installed
+import * as facemesh from "@tensorflow-models/facemesh";
+import Webcam from "react-webcam";
 
-This project was bootstrapped with [Create React App](https://github.com/facebook/create-react-app).
+function App() {
+  const webcamRef = useRef(null);
+  const canvasRef = useRef(null);
+  const [faceCount, setFaceCount] = useState(0);
 
-## Available Scripts
+  // Draw mesh function
+  const drawMesh = (predictions, ctx) => {
+    // Always set the current face count, even if it's zero
+    setFaceCount(predictions.length);
+    
+    // Only draw if there are faces
+    if (predictions.length > 0) {
+      // Loop through each prediction
+      predictions.forEach((prediction) => {
+        // Get keypoints
+        const keypoints = prediction.scaledMesh;
+        
+        // Draw dots
+        for (let i = 0; i < keypoints.length; i++) {
+          const x = keypoints[i][0];
+          const y = keypoints[i][1];
+          
+          ctx.beginPath();
+          ctx.arc(x, y, 1.5, 0, 3 * Math.PI);
+          ctx.fillStyle = "#00FF00";
+          ctx.fill();
+        }
+        
+        // Draw triangles (triangulation connects dots with lines)
+        const annotations = prediction.annotations;
+        
+        // Draw the lines
+        ctx.strokeStyle = "#00FFFF";
+        ctx.lineWidth = 1;
+        
+        // Draw contours
+        Object.values(annotations).forEach((points) => {
+          ctx.beginPath();
+          for (let i = 0; i < points.length; i++) {
+            const x = points[i][0];
+            const y = points[i][1];
+            
+            if (i === 0) {
+              ctx.moveTo(x, y);
+            } else {
+              ctx.lineTo(x, y);
+            }
+          }
+          ctx.stroke();
+        });
+      });
+    }
+  };
 
-In the project directory, you can run:
+  // Load the facemesh model
+  const runFacemesh = useCallback(async () => {
+    const net = await facemesh.load({
+      inputResolution: { width: 640, height: 480 },
+      scale: 0.8,
+    });
+    console.log("Facemesh model loaded");
+    
+    // Start detection loop
+    setInterval(() => {
+      detect(net);
+    }, 100);
+  }, []);
 
-### `npm start`
+  // Detect function
+  const detect = async (net) => {
+    if (
+      typeof webcamRef.current !== "undefined" &&
+      webcamRef.current !== null &&
+      webcamRef.current.video.readyState === 4
+    ) {
+      // Get Video Properties
+      const video = webcamRef.current.video;
+      const videoWidth = webcamRef.current.video.videoWidth;
+      const videoHeight = webcamRef.current.video.videoHeight;
 
-Runs the app in the development mode.\
-Open [http://localhost:3000](http://localhost:3000) to view it in your browser.
+      // Set video width
+      webcamRef.current.video.width = videoWidth;
+      webcamRef.current.video.height = videoHeight;
 
-The page will reload when you make changes.\
-You may also see any lint errors in the console.
+      // Set canvas width
+      canvasRef.current.width = videoWidth;
+      canvasRef.current.height = videoHeight;
 
-### `npm test`
+      // Make Detections
+      const face = await net.estimateFaces(video);
 
-Launches the test runner in the interactive watch mode.\
-See the section about [running tests](https://facebook.github.io/create-react-app/docs/running-tests) for more information.
+      // Get canvas context
+      const ctx = canvasRef.current.getContext("2d");
+      
+      // Clear canvas
+      ctx.clearRect(0, 0, videoWidth, videoHeight);
+      
+      // Draw mesh
+      requestAnimationFrame(() => drawMesh(face, ctx));
+    }
+  };
 
-### `npm run build`
+  useEffect(() => {
+    runFacemesh();
+  }, [runFacemesh]);
 
-Builds the app for production to the `build` folder.\
-It correctly bundles React in production mode and optimizes the build for the best performance.
+  return (
+    <div className="App">
+      <div className="face-counter">
+        Faces Detected: {faceCount}
+      </div>
+      <header className="App-header">
+        <Webcam
+          ref={webcamRef}
+          style={{
+            position: "absolute",
+            marginLeft: "auto",
+            marginRight: "auto",
+            left: 0,
+            right: 0,
+            textAlign: "center",
+            zIndex: 9,
+            width: 640,
+            height: 480,
+          }}
+        />
 
-The build is minified and the filenames include the hashes.\
-Your app is ready to be deployed!
+        <canvas
+          ref={canvasRef}
+          style={{
+            position: "absolute",
+            marginLeft: "auto",
+            marginRight: "auto",
+            left: 0,
+            right: 0,
+            textAlign: "center",
+            zIndex: 10,
+            width: 640,
+            height: 480,
+          }}
+        />
+      </header>
+    </div>
+  );
+}
 
-See the section about [deployment](https://facebook.github.io/create-react-app/docs/deployment) for more information.
+export default App;
 
-### `npm run eject`
 
-**Note: this is a one-way operation. Once you `eject`, you can't go back!**
 
-If you aren't satisfied with the build tool and configuration choices, you can `eject` at any time. This command will remove the single build dependency from your project.
 
-Instead, it will copy all the configuration files and the transitive dependencies (webpack, Babel, ESLint, etc) right into your project so you have full control over them. All of the commands except `eject` will still work, but they will point to the copied scripts so you can tweak them. At this point you're on your own.
 
-You don't have to ever use `eject`. The curated feature set is suitable for small and middle deployments, and you shouldn't feel obligated to use this feature. However we understand that this tool wouldn't be useful if you couldn't customize it when you are ready for it.
 
-## Learn More
 
-You can learn more in the [Create React App documentation](https://facebook.github.io/create-react-app/docs/getting-started).
 
-To learn React, check out the [React documentation](https://reactjs.org/).
 
-### Code Splitting
 
-This section has moved here: [https://facebook.github.io/create-react-app/docs/code-splitting](https://facebook.github.io/create-react-app/docs/code-splitting)
 
-### Analyzing the Bundle Size
 
-This section has moved here: [https://facebook.github.io/create-react-app/docs/analyzing-the-bundle-size](https://facebook.github.io/create-react-app/docs/analyzing-the-bundle-size)
 
-### Making a Progressive Web App
 
-This section has moved here: [https://facebook.github.io/create-react-app/docs/making-a-progressive-web-app](https://facebook.github.io/create-react-app/docs/making-a-progressive-web-app)
 
-### Advanced Configuration
 
-This section has moved here: [https://facebook.github.io/create-react-app/docs/advanced-configuration](https://facebook.github.io/create-react-app/docs/advanced-configuration)
 
-### Deployment
 
-This section has moved here: [https://facebook.github.io/create-react-app/docs/deployment](https://facebook.github.io/create-react-app/docs/deployment)
 
-### `npm run build` fails to minify
+.App {
+  text-align: center;
+}
 
-This section has moved here: [https://facebook.github.io/create-react-app/docs/troubleshooting#npm-run-build-fails-to-minify](https://facebook.github.io/create-react-app/docs/troubleshooting#npm-run-build-fails-to-minify)
+/* Add this styling for the face counter to appear in the top right corner */
+.face-counter {
+  position: absolute;
+  top: 20px;
+  right: 20px;
+  background-color: rgba(0, 0, 0, 0.7);
+  color: white;
+  padding: 10px 15px;
+  border-radius: 5px;
+  font-size: 18px;
+  font-weight: bold;
+  z-index: 20; /* Higher than canvas and webcam to ensure visibility */
+  margin: 0;
+}
+
+.App-logo {
+  height: 40vmin;
+  pointer-events: none;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .App-logo {
+    animation: App-logo-spin infinite 20s linear;
+  }
+}
+
+.App-header {
+  background-color: #282c34;
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  font-size: calc(10px + 2vmin);
+  color: white;
+}
+
+.App-link {
+  color: #61dafb;
+}
+
+@keyframes App-logo-spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
